@@ -20,7 +20,36 @@ impl PieceType {
     }
 
     fn ret_can_make_move(&self, beg_pos: (usize,usize), end_pos: (usize,usize)) -> bool {
-        false
+        let (beg_rank, beg_file) = beg_pos;
+        let (end_rank, end_file) = end_pos;
+
+        let diff_file: i32 = (beg_file as i32 - end_file as i32).abs();
+        let diff_rank: i32 = (beg_rank as i32 - end_rank as i32).abs();
+
+        match self {
+            PieceType::Pawn(moved) => {
+                if !*moved {
+                    diff_rank < 3
+                } else {
+                    diff_rank == 1
+                }
+            },
+            PieceType::Rook(_) => {
+                (diff_rank == 0) | (diff_file == 0)
+            },
+            PieceType::King(_) => {
+                (diff_file <= 1) & (diff_rank <= 1)
+            },
+            PieceType::Bishop => {
+                diff_file == diff_rank
+            },
+            PieceType::Knight => {
+                ((diff_file == 2) & (diff_rank == 1)) | ((diff_rank == 2) & (diff_file == 1))
+            },
+            PieceType::Queen => {
+                (diff_file == diff_rank) | ((beg_file == end_file) | (beg_rank == end_rank))
+            },
+        }
     }
 }
 
@@ -130,10 +159,6 @@ impl Board {
     }
 
     pub fn move_piece_with_chess_notation(&mut self, start: &str, end: &str) {
-        let first: (usize, usize) = chess_notation_to_array_notation(start);
-        let second: (usize, usize) = chess_notation_to_array_notation(end); 
-        println!("{:?}",first);
-        println!("{:?}", second);
         self.move_piece(chess_notation_to_array_notation(start), chess_notation_to_array_notation(end));
     }
 
@@ -146,6 +171,10 @@ impl Board {
             },
             None => false,
         }
+    }
+
+    pub fn check_legal_move_chess_notation(&self, beginning_pos: &str, ending_pos: &str) -> bool {
+        self.check_legal_move(chess_notation_to_array_notation(beginning_pos), chess_notation_to_array_notation(ending_pos))
     }
 }
 
