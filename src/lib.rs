@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PieceType {
     Pawn(bool),
     Rook(bool),
@@ -7,6 +7,7 @@ pub enum PieceType {
     King(bool),
     Queen,
 }
+
 impl PieceType {
     fn ret_type_as_char(&self) -> char {
         match &self {
@@ -61,14 +62,15 @@ pub enum Color {
 impl Color {
     fn is_white(&self) -> bool {
         self == &Color::White
-        }
     }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Piece {
     pub piece_type: PieceType,
     pub color: Color,
 }
+
 impl Piece {
     fn get_piece_as_char(&self) -> char {
         if self.color.is_white() {
@@ -84,6 +86,7 @@ pub struct Board {
     pub turn: i8,
     pub turn_number: i8,
 }
+
 impl Default for Board {
     fn default() -> Self {
         Board {
@@ -204,9 +207,6 @@ impl Board {
                 false
             },
             PieceType::Knight => {
-                if let Some(_) = board[end_rank][end_file] {
-                    return true;
-                }
                 false
             },
             PieceType::Bishop => {
@@ -235,9 +235,6 @@ impl Board {
                 false
             },
             PieceType::King(_) => {
-                if let Some(_) = board[end_rank][end_file] {
-                    return true;
-                }
                 false
             },
             PieceType::Queen => {
@@ -272,7 +269,39 @@ impl Board {
     pub fn check_collison_chess_notation(&self, beginning_pos: &str, ending_pos: &str) -> bool {
         self.check_collison(chess_notation_to_array_notation(beginning_pos), chess_notation_to_array_notation(ending_pos))
     }
+
+    fn make_move(&mut self, beginning_pos: (usize, usize), ending_pos: (usize, usize)) -> bool {
+        let board = &mut self.board;
+
+        let (beg_rank, beg_file) = beginning_pos;
+        let (end_rank, end_file) = ending_pos;
+
+        let starting_piece = &board[beg_rank][beg_file].unwrap();
+        let ending_piece = &board[end_rank][end_file];
+
+        if !starting_piece.piece_type.ret_can_make_move(beginning_pos, ending_pos) {
+            return false;
+        }
+        match ending_piece {
+            Some(end_piece) => {
+                if end_piece.color == starting_piece.color {
+                    return false;
+                }
+            },
+            None => (),
+        }
+        if self.check_collison(beginning_pos, ending_pos) {
+            return false;
+        }
+        self.move_piece(beginning_pos, ending_pos);
+        true
+    }
+
+    pub fn make_move_chess_notation(&mut self, start: &str, end: &str) -> bool {
+        self.make_move(chess_notation_to_array_notation(start), chess_notation_to_array_notation(end))
+    }    
 }
+
 
 fn build_piece(piece: PieceType, color: Color) -> Option<Piece>{
     let to_build = Piece { piece_type: piece, color: color, };
@@ -319,11 +348,11 @@ pub fn chess_notation_to_array_notation(chess_not: &str) -> (usize, usize) /* fi
     (rank, file)
 }
 
-// takes 2 ints and returns range between them from the first to the second, regardless of which is larger (excl..incl)
+// takes 2 ints and returns range between them from the first to the second, regardless of which is larger (excl..excl)
 pub fn ret_range(first: usize, second: usize) -> Box<dyn Iterator<Item = i32>> {
     if first > second {
-        Box::new(((second as i32)..(first as i32)).rev())
+        Box::new(((second as i32 + 1)..(first as i32)).rev())
     } else {
-        Box::new((first as i32+1)..(second as i32+1)) as Box<dyn Iterator<Item = i32>>
+        Box::new((first as i32+1)..(second as i32)) as Box<dyn Iterator<Item = i32>>
     }
 }
