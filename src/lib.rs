@@ -191,22 +191,11 @@ impl Board {
 
         match board[beg_rank][beg_file].unwrap().piece_type {
             PieceType::Pawn(_) => {
-                if diff_rank > 0 {
-                    for i in 1..diff_rank+1 {
-                        if let Some(_) = board[beg_rank + i as usize][beg_file] {
-                           return true;
-                        }
+                for i in ret_range(beg_rank, end_rank) {
+                    if let Some(_) = board[i as usize][beg_file] {
+                        return true;
                     }
-                } else {
-                    for i in diff_rank..0 {
-                        if let Some(_) = board[(beg_rank as i32 + i) as usize][beg_file] {
-                            return true;
-                        }
-                    }
-                }     
-                false
-            },
-            PieceType::Knight => {
+                }
                 false
             },
             PieceType::Bishop => {
@@ -234,11 +223,8 @@ impl Board {
                 }
                 false
             },
-            PieceType::King(_) => {
-                false
-            },
             PieceType::Queen => {
-                if diff_file == diff_rank {
+                if diff_file.abs() == diff_rank.abs() {
                     for (i,j) in ret_range(beg_rank, end_rank).zip(ret_range(beg_file, end_file)) {
                         let (i,j) = (i,j);
                         if let Some(_) = board[i as usize][j as usize] {
@@ -262,7 +248,8 @@ impl Board {
                     }
                     false
                 }
-            }
+            },
+            _ => false,
         }
     }
 
@@ -299,7 +286,72 @@ impl Board {
 
     pub fn make_move_chess_notation(&mut self, start: &str, end: &str) -> bool {
         self.make_move(chess_notation_to_array_notation(start), chess_notation_to_array_notation(end))
-    }    
+    }
+
+    fn select_move(&mut self, beginning_pos: (usize, usize), ending_pos: (usize, usize)) -> bool {
+        // todo: castling, en pessant
+        let board = &mut self.board;
+
+        let (beg_rank, beg_file) = beginning_pos;
+        let (end_rank, end_file) = ending_pos;
+
+        let diff_file: i32 = (end_file as i32 - beg_file as i32).abs();
+        let diff_rank: i32 = end_rank as i32 - beg_rank as i32;
+
+        let starting_piece = &board[beg_rank][beg_file].unwrap();
+        let ending_piece = &board[end_rank][end_file];
+
+        if let PieceType::Pawn(_) = starting_piece.piece_type {
+            if diff_file == 1 {
+                match starting_piece.color {
+                    Color::Black => {
+                        if diff_rank == 1 {
+                            match ending_piece {
+                                Some(end_piece) => {
+                                    match end_piece.color {
+                                        Color::Black => {
+                                            return false;
+                                        },
+                                        Color::White => {
+                                            self.move_piece(beginning_pos, ending_pos);
+                                        },
+                                    }
+                                },
+                                None => return false,
+                            }
+                        }
+                        return false;
+                    },
+                    Color::White => {
+                        if diff_rank == -1 {
+                            match ending_piece {
+                                Some(end_piece) => {
+                                    match end_piece.color {
+                                        Color::White => {
+                                            return false;
+                                        },
+                                        Color::Black => {
+                                            self.move_piece(beginning_pos, ending_pos);
+                                        },
+                                    }
+                                },
+                                None => return false,
+                            }
+                        }
+                        return false;
+                    }
+                }
+            } else if diff_file == 0 {
+                self.make_move(beginning_pos, ending_pos);
+            }
+        }
+        // todo castling, en pessant
+        self.make_move(beginning_pos, ending_pos)
+    }
+
+    pub fn select_move_chess_notation(&mut self, start: &str, end: &str) -> bool {
+        self.select_move(chess_notation_to_array_notation(start), chess_notation_to_array_notation(end))
+    }
 }
 
 

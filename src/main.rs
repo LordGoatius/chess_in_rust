@@ -26,7 +26,7 @@ fn main() {
         if start_move == "0" {
             break 'main_loop;
         }
-        println!("{}",board.make_move_chess_notation(&start_move, &end_move));
+        println!("{}",board.select_move_chess_notation(&start_move, &end_move));
         board.print_board();
     }
 
