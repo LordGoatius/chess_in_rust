@@ -121,7 +121,7 @@ impl Board {
         println!("{:?}",self.board[rank][file].unwrap());
     }
 
-    pub fn move_piece(&mut self, beginning_pos: (usize, usize), ending_pos: (usize, usize)) {
+    fn move_piece(&mut self, beginning_pos: (usize, usize), ending_pos: (usize, usize)) {
         let board = &mut self.board;
 
         let (beg_rank, beg_file) = beginning_pos;
@@ -162,7 +162,7 @@ impl Board {
         self.move_piece(chess_notation_to_array_notation(start), chess_notation_to_array_notation(end));
     }
 
-    pub fn check_legal_move(&self, beginning_pos: (usize, usize), ending_pos: (usize, usize)) -> bool {
+    fn check_legal_move(&self, beginning_pos: (usize, usize), ending_pos: (usize, usize)) -> bool {
         let (beg_rank, beg_file) = beginning_pos;
 
         match self.board[beg_rank][beg_file] {
@@ -175,6 +175,102 @@ impl Board {
 
     pub fn check_legal_move_chess_notation(&self, beginning_pos: &str, ending_pos: &str) -> bool {
         self.check_legal_move(chess_notation_to_array_notation(beginning_pos), chess_notation_to_array_notation(ending_pos))
+    }
+
+    fn check_collison(&self, beginning_pos: (usize, usize), ending_pos: (usize, usize)) -> bool { 
+        let board = &self.board;
+
+        let (beg_rank, beg_file) = beginning_pos;
+        let (end_rank, end_file) = ending_pos;
+
+        let diff_file: i32 = end_file as i32 - beg_file as i32;
+        let diff_rank: i32 = end_rank as i32 - beg_rank as i32;
+
+        match board[beg_rank][beg_file].unwrap().piece_type {
+            PieceType::Pawn(_) => {
+                if diff_rank > 0 {
+                    for i in 1..diff_rank+1 {
+                        if let Some(_) = board[beg_rank + i as usize][beg_file] {
+                           return true;
+                        }
+                    }
+                } else {
+                    for i in diff_rank..0 {
+                        if let Some(_) = board[(beg_rank as i32 + i) as usize][beg_file] {
+                            return true;
+                        }
+                    }
+                }     
+                false
+            },
+            PieceType::Knight => {
+                if let Some(_) = board[end_rank][end_file] {
+                    return true;
+                }
+                false
+            },
+            PieceType::Bishop => {
+                for (i,j) in ret_range(beg_rank, end_rank).zip(ret_range(beg_file, end_file)) {
+                    let (i,j) = (i,j);
+                    if let Some(_) = board[i as usize][j as usize] {
+                        return true;
+                    }
+                }
+                false
+            },
+            PieceType::Rook(_) => {
+                if diff_file == 0 {
+                    for i in ret_range(beg_rank, end_rank) {
+                        if let Some(_) = board[i as usize][beg_file] {
+                            return true;
+                        }
+                    }
+                } else {
+                    for j in ret_range(beg_file, end_file) {
+                        if let Some(_) = board[beg_rank][j as usize] {
+                            return true;
+                        }
+                    }
+                }
+                false
+            },
+            PieceType::King(_) => {
+                if let Some(_) = board[end_rank][end_file] {
+                    return true;
+                }
+                false
+            },
+            PieceType::Queen => {
+                if diff_file == diff_rank {
+                    for (i,j) in ret_range(beg_rank, end_rank).zip(ret_range(beg_file, end_file)) {
+                        let (i,j) = (i,j);
+                        if let Some(_) = board[i as usize][j as usize] {
+                            return true;
+                        }
+                    }
+                    false
+                } else {
+                    if diff_file == 0 {
+                        for i in ret_range(beg_rank, end_rank) {
+                            if let Some(_) = board[i as usize][beg_file] {
+                                return true;
+                            }
+                        }
+                    } else {
+                        for j in ret_range(beg_file, end_file) {
+                            if let Some(_) = board[beg_rank][j as usize] {
+                                return true;
+                            }
+                        }
+                    }
+                    false
+                }
+            }
+        }
+    }
+
+    pub fn check_collison_chess_notation(&self, beginning_pos: &str, ending_pos: &str) -> bool {
+        self.check_collison(chess_notation_to_array_notation(beginning_pos), chess_notation_to_array_notation(ending_pos))
     }
 }
 
@@ -221,4 +317,13 @@ pub fn chess_notation_to_array_notation(chess_not: &str) -> (usize, usize) /* fi
     let rank: usize = 7 - (chess_not.chars().nth(1).unwrap() as usize - 49);
 
     (rank, file)
+}
+
+// takes 2 ints and returns range between them from the first to the second, regardless of which is larger (excl..incl)
+pub fn ret_range(first: usize, second: usize) -> Box<dyn Iterator<Item = i32>> {
+    if first > second {
+        Box::new(((second as i32)..(first as i32)).rev())
+    } else {
+        Box::new((first as i32+1)..(second as i32+1)) as Box<dyn Iterator<Item = i32>>
+    }
 }
