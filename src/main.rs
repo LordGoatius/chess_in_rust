@@ -23,7 +23,7 @@ fn main() {
             .expect("Failed to read line");
         println!("");
         
-        if start_move == "0" {
+        if start_move == "0".to_string() {
             break 'main_loop;
         }
         println!("{}",board.select_move_chess_notation(&start_move, &end_move));
@@ -51,4 +51,8 @@ fn main() {
     // //Knight
     // println!("True: {}",board.check_collison_chess_notation("b1", "d2"));
     // println!("False: {}",board.check_collison_chess_notation("b1", "a3"));
+
 }
+
+
+

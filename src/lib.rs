@@ -20,7 +20,7 @@ impl PieceType {
         }
     }
 
-    fn ret_can_make_move(&self, beg_pos: (usize,usize), end_pos: (usize,usize)) -> bool {
+    fn ret_can_make_move(&self, beg_pos: (usize, usize), end_pos: (usize, usize)) -> bool {
         let (beg_rank, beg_file) = beg_pos;
         let (end_rank, end_file) = end_pos;
 
@@ -34,22 +34,16 @@ impl PieceType {
                 } else {
                     diff_rank == 1
                 }
-            },
-            PieceType::Rook(_) => {
-                (diff_rank == 0) | (diff_file == 0)
-            },
-            PieceType::King(_) => {
-                (diff_file <= 1) & (diff_rank <= 1)
-            },
-            PieceType::Bishop => {
-                diff_file == diff_rank
-            },
+            }
+            PieceType::Rook(_) => (diff_rank == 0) | (diff_file == 0),
+            PieceType::King(_) => (diff_file <= 1) & (diff_rank <= 1),
+            PieceType::Bishop => diff_file == diff_rank,
             PieceType::Knight => {
                 ((diff_file == 2) & (diff_rank == 1)) | ((diff_rank == 2) & (diff_file == 1))
-            },
+            }
             PieceType::Queen => {
                 (diff_file == diff_rank) | ((beg_file == end_file) | (beg_rank == end_rank))
-            },
+            }
         }
     }
 }
@@ -70,7 +64,6 @@ pub struct Piece {
     pub piece_type: PieceType,
     pub color: Color,
 }
-
 impl Piece {
     fn get_piece_as_char(&self) -> char {
         if self.color.is_white() {
@@ -85,6 +78,7 @@ pub struct Board {
     pub board: [[Option<Piece>; 8]; 8],
     pub turn: i8,
     pub turn_number: i8,
+    pub can_en_pessant: [(i32, i32); 2],
 }
 
 impl Default for Board {
@@ -93,6 +87,7 @@ impl Default for Board {
             board: build_starting_board(),
             turn: 0,
             turn_number: 0,
+            can_en_pessant: [(-1, -1), (-1, -1)],
         }
     }
 }
@@ -101,11 +96,11 @@ impl Board {
         let mut row_num: i8 = 8;
         println!("  ---------------------------------");
         for row in &self.board {
-            print!("{} |",row_num);
+            print!("{} |", row_num);
             row_num -= 1;
             for piece in row {
                 match piece {
-                    Some(_) => print!(" {} |",piece.as_ref().unwrap().get_piece_as_char()),
+                    Some(_) => print!(" {} |", piece.as_ref().unwrap().get_piece_as_char()),
                     None => print!("   |"),
                 }
             }
@@ -121,7 +116,54 @@ impl Board {
 
     pub fn print_piece(&self, pos: &str) {
         let (rank, file) = chess_notation_to_array_notation(pos);
-        println!("{:?}",self.board[rank][file].unwrap());
+        println!("{:?}", self.board[rank][file].unwrap());
+    }
+
+    fn check_en_pessant(&mut self, piece: &Piece, ending_pos: (usize, usize)) {
+        let (end_rank, end_file) = ending_pos;
+        match piece.color {
+            Color::Black => {
+                if end_file != 0 && end_file != 7 {
+                    self.can_en_pessant[0] =
+                        self.check_sides(Color::White, end_rank, end_file - 1);
+                    self.can_en_pessant[1] =
+                        self.check_sides(Color::White, end_rank, end_file + 1);
+                } else if end_file == 0 {
+                    self.can_en_pessant[0] =
+                        self.check_sides(Color::White, end_rank, end_file + 1);
+                } else if end_file == 7 {
+                    self.can_en_pessant[0] =
+                        self.check_sides(Color::White, end_rank, end_file - 1);
+                } else {
+                    panic!("Dunno wtf happened ngl");
+                }
+            }
+            Color::White => {
+                if end_file != 0 && end_file != 7 {
+                    self.can_en_pessant[0] =
+                        self.check_sides(Color::Black, end_rank, end_file - 1);
+                    self.can_en_pessant[1] =
+                        self.check_sides(Color::Black, end_rank, end_file + 1);
+                } else if end_file == 0 {
+                    self.can_en_pessant[0] =
+                        self.check_sides(Color::Black, end_rank, end_file + 1);
+                } else if end_file == 7 {
+                    self.can_en_pessant[0] =
+                        self.check_sides(Color::Black, end_rank, end_file - 1);
+                } else {
+                    panic!("Dunno wtf happened ngl");
+                }
+            }
+        }
+    }
+
+    fn check_sides(&self, color: Color, rank: usize, to_check: usize) -> (i32, i32) {
+        if let Some(side_piece) = self.board[rank][to_check] {
+            if color == side_piece.color {
+                return (rank as i32, to_check as i32);
+            }
+        }
+        (-1, -1)
     }
 
     fn move_piece(&mut self, beginning_pos: (usize, usize), ending_pos: (usize, usize)) {
@@ -130,29 +172,27 @@ impl Board {
         let (beg_rank, beg_file) = beginning_pos;
         let (end_rank, end_file) = ending_pos;
 
-        match board[beg_rank][ beg_file] {
-            Some (piece) => {
-                match piece.piece_type {
-                    PieceType::King(false) => {
-                        board[beg_rank][beg_file] = Some(Piece {
-                            piece_type: PieceType::King(true),
-                            color: piece.color,
-                        })
-                    },
-                    PieceType::Pawn(false) => {
-                        board[beg_rank][beg_file] = Some(Piece {
-                            piece_type: PieceType::Pawn(true),
-                            color: piece.color,
-                        })
-                    },
-                    PieceType::Rook(false) => {
-                        board[beg_rank][beg_file] = Some(Piece {
-                            piece_type: PieceType::Rook(true),
-                            color: piece.color,
-                        })
-                    },
-                    _ => (),
+        match board[beg_rank][beg_file] {
+            Some(piece) => match piece.piece_type {
+                PieceType::King(false) => {
+                    board[beg_rank][beg_file] = Some(Piece {
+                        piece_type: PieceType::King(true),
+                        color: piece.color,
+                    })
                 }
+                PieceType::Pawn(false) => {
+                    board[beg_rank][beg_file] = Some(Piece {
+                        piece_type: PieceType::Pawn(true),
+                        color: piece.color,
+                    })
+                }
+                PieceType::Rook(false) => {
+                    board[beg_rank][beg_file] = Some(Piece {
+                        piece_type: PieceType::Rook(true),
+                        color: piece.color,
+                    })
+                }
+                _ => (),
             },
             None => (),
         }
@@ -162,25 +202,31 @@ impl Board {
     }
 
     pub fn move_piece_with_chess_notation(&mut self, start: &str, end: &str) {
-        self.move_piece(chess_notation_to_array_notation(start), chess_notation_to_array_notation(end));
+        self.move_piece(
+            chess_notation_to_array_notation(start),
+            chess_notation_to_array_notation(end),
+        );
     }
 
     fn check_legal_move(&self, beginning_pos: (usize, usize), ending_pos: (usize, usize)) -> bool {
         let (beg_rank, beg_file) = beginning_pos;
 
         match self.board[beg_rank][beg_file] {
-            Some(piece) => {
-                piece.piece_type.ret_can_make_move(beginning_pos, ending_pos)
-            },
+            Some(piece) => piece
+                .piece_type
+                .ret_can_make_move(beginning_pos, ending_pos),
             None => false,
         }
     }
 
     pub fn check_legal_move_chess_notation(&self, beginning_pos: &str, ending_pos: &str) -> bool {
-        self.check_legal_move(chess_notation_to_array_notation(beginning_pos), chess_notation_to_array_notation(ending_pos))
+        self.check_legal_move(
+            chess_notation_to_array_notation(beginning_pos),
+            chess_notation_to_array_notation(ending_pos),
+        )
     }
 
-    fn check_collison(&self, beginning_pos: (usize, usize), ending_pos: (usize, usize)) -> bool { 
+    fn check_collison(&self, beginning_pos: (usize, usize), ending_pos: (usize, usize)) -> bool {
         let board = &self.board;
 
         let (beg_rank, beg_file) = beginning_pos;
@@ -197,16 +243,16 @@ impl Board {
                     }
                 }
                 false
-            },
+            }
             PieceType::Bishop => {
-                for (i,j) in ret_range(beg_rank, end_rank).zip(ret_range(beg_file, end_file)) {
-                    let (i,j) = (i,j);
+                for (i, j) in ret_range(beg_rank, end_rank).zip(ret_range(beg_file, end_file)) {
+                    let (i, j) = (i, j);
                     if let Some(_) = board[i as usize][j as usize] {
                         return true;
                     }
                 }
                 false
-            },
+            }
             PieceType::Rook(_) => {
                 if diff_file == 0 {
                     for i in ret_range(beg_rank, end_rank) {
@@ -222,11 +268,11 @@ impl Board {
                     }
                 }
                 false
-            },
+            }
             PieceType::Queen => {
                 if diff_file.abs() == diff_rank.abs() {
-                    for (i,j) in ret_range(beg_rank, end_rank).zip(ret_range(beg_file, end_file)) {
-                        let (i,j) = (i,j);
+                    for (i, j) in ret_range(beg_rank, end_rank).zip(ret_range(beg_file, end_file)) {
+                        let (i, j) = (i, j);
                         if let Some(_) = board[i as usize][j as usize] {
                             return true;
                         }
@@ -248,13 +294,16 @@ impl Board {
                     }
                     false
                 }
-            },
+            }
             _ => false,
         }
     }
 
     pub fn check_collison_chess_notation(&self, beginning_pos: &str, ending_pos: &str) -> bool {
-        self.check_collison(chess_notation_to_array_notation(beginning_pos), chess_notation_to_array_notation(ending_pos))
+        self.check_collison(
+            chess_notation_to_array_notation(beginning_pos),
+            chess_notation_to_array_notation(ending_pos),
+        )
     }
 
     fn make_move(&mut self, beginning_pos: (usize, usize), ending_pos: (usize, usize)) -> bool {
@@ -266,7 +315,10 @@ impl Board {
         let starting_piece = &board[beg_rank][beg_file].unwrap();
         let ending_piece = &board[end_rank][end_file];
 
-        if !starting_piece.piece_type.ret_can_make_move(beginning_pos, ending_pos) {
+        if !starting_piece
+            .piece_type
+            .ret_can_make_move(beginning_pos, ending_pos)
+        {
             return false;
         }
         match ending_piece {
@@ -274,7 +326,7 @@ impl Board {
                 if end_piece.color == starting_piece.color {
                     return false;
                 }
-            },
+            }
             None => (),
         }
         if self.check_collison(beginning_pos, ending_pos) {
@@ -285,7 +337,10 @@ impl Board {
     }
 
     pub fn make_move_chess_notation(&mut self, start: &str, end: &str) -> bool {
-        self.make_move(chess_notation_to_array_notation(start), chess_notation_to_array_notation(end))
+        self.make_move(
+            chess_notation_to_array_notation(start),
+            chess_notation_to_array_notation(end),
+        )
     }
 
     fn select_move(&mut self, beginning_pos: (usize, usize), ending_pos: (usize, usize)) -> bool {
@@ -302,37 +357,37 @@ impl Board {
         let ending_piece = &board[end_rank][end_file];
 
         if let PieceType::Pawn(_) = starting_piece.piece_type {
-            if diff_file == 1 {
+            if diff_file == 0 {
+                return self.make_move(beginning_pos, ending_pos);
+            } else if diff_file == 1 {
                 match starting_piece.color {
                     Color::Black => {
                         if diff_rank == 1 {
                             match ending_piece {
-                                Some(end_piece) => {
-                                    match end_piece.color {
-                                        Color::Black => {
-                                            return false;
-                                        },
-                                        Color::White => {
-                                            self.move_piece(beginning_pos, ending_pos);
-                                        },
+                                Some(end_piece) => match end_piece.color {
+                                    Color::Black => {
+                                        return false;
+                                    }
+                                    Color::White => {
+                                        self.move_piece(beginning_pos, ending_pos);
+                                        return true;
                                     }
                                 },
                                 None => return false,
                             }
                         }
                         return false;
-                    },
+                    }
                     Color::White => {
                         if diff_rank == -1 {
                             match ending_piece {
-                                Some(end_piece) => {
-                                    match end_piece.color {
-                                        Color::White => {
-                                            return false;
-                                        },
-                                        Color::Black => {
-                                            self.move_piece(beginning_pos, ending_pos);
-                                        },
+                                Some(end_piece) => match end_piece.color {
+                                    Color::White => {
+                                        return false;
+                                    }
+                                    Color::Black => {
+                                        self.move_piece(beginning_pos, ending_pos);
+                                        return true;
                                     }
                                 },
                                 None => return false,
@@ -341,27 +396,40 @@ impl Board {
                         return false;
                     }
                 }
-            } else if diff_file == 0 {
-                self.make_move(beginning_pos, ending_pos);
             }
+            return false;
         }
         // todo castling, en pessant
         self.make_move(beginning_pos, ending_pos)
     }
 
     pub fn select_move_chess_notation(&mut self, start: &str, end: &str) -> bool {
-        self.select_move(chess_notation_to_array_notation(start), chess_notation_to_array_notation(end))
+        self.select_move(
+            chess_notation_to_array_notation(start),
+            chess_notation_to_array_notation(end),
+        )
     }
 }
 
-
-fn build_piece(piece: PieceType, color: Color) -> Option<Piece>{
-    let to_build = Piece { piece_type: piece, color: color, };
+fn build_piece(piece: PieceType, color: Color) -> Option<Piece> {
+    let to_build = Piece {
+        piece_type: piece,
+        color: color,
+    };
     let ret: Option<Piece> = Some(to_build);
     return ret;
 }
 fn build_starting_board() -> [[Option<Piece>; 8]; 8] {
-    let mut board = [[None, None, None, None, None, None, None, None],[None, None, None, None, None, None, None, None], [None, None, None, None, None, None, None, None],[None, None, None, None, None, None, None, None],[None, None, None, None, None, None, None, None],[None, None, None, None, None, None, None, None],[None, None, None, None, None, None, None, None],[None, None, None, None, None, None, None, None]];
+    let mut board = [
+        [None, None, None, None, None, None, None, None],
+        [None, None, None, None, None, None, None, None],
+        [None, None, None, None, None, None, None, None],
+        [None, None, None, None, None, None, None, None],
+        [None, None, None, None, None, None, None, None],
+        [None, None, None, None, None, None, None, None],
+        [None, None, None, None, None, None, None, None],
+        [None, None, None, None, None, None, None, None],
+    ];
     board[0][0] = build_piece(PieceType::Rook(false), Color::Black);
     board[0][1] = build_piece(PieceType::Knight, Color::Black);
     board[0][2] = build_piece(PieceType::Bishop, Color::Black);
@@ -405,6 +473,6 @@ pub fn ret_range(first: usize, second: usize) -> Box<dyn Iterator<Item = i32>> {
     if first > second {
         Box::new(((second as i32 + 1)..(first as i32)).rev())
     } else {
-        Box::new((first as i32+1)..(second as i32)) as Box<dyn Iterator<Item = i32>>
+        Box::new((first as i32 + 1)..(second as i32)) as Box<dyn Iterator<Item = i32>>
     }
 }
