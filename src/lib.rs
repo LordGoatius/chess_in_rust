@@ -1,3 +1,5 @@
+use std::io;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PieceType {
     Pawn(bool),
@@ -119,9 +121,9 @@ impl Board {
         println!("{:?}", self.board[rank][file].unwrap());
     }
 
-    fn check_en_pessant(&mut self, piece: &Piece, ending_pos: (usize, usize)) {
+    fn check_en_pessant(&mut self, color: Color, ending_pos: (usize, usize)) {
         let (end_rank, end_file) = ending_pos;
-        match piece.color {
+        match color {
             Color::Black => {
                 if end_file != 0 && end_file != 7 {
                     self.can_en_pessant[0] =
@@ -137,7 +139,7 @@ impl Board {
                 } else {
                     panic!("Dunno wtf happened ngl");
                 }
-            }
+            },
             Color::White => {
                 if end_file != 0 && end_file != 7 {
                     self.can_en_pessant[0] =
@@ -167,38 +169,120 @@ impl Board {
     }
 
     fn move_piece(&mut self, beginning_pos: (usize, usize), ending_pos: (usize, usize)) {
-        let board = &mut self.board;
-
         let (beg_rank, beg_file) = beginning_pos;
         let (end_rank, end_file) = ending_pos;
 
-        match board[beg_rank][beg_file] {
+        self.can_en_pessant = [(-1,-1),(-1,-1)];
+
+        let starting_piece = self.board[beg_rank][beg_file];
+
+        match starting_piece {
             Some(piece) => match piece.piece_type {
                 PieceType::King(false) => {
-                    board[beg_rank][beg_file] = Some(Piece {
+                    self.board[beg_rank][beg_file] = Some(Piece {
                         piece_type: PieceType::King(true),
                         color: piece.color,
                     })
-                }
+                },
                 PieceType::Pawn(false) => {
-                    board[beg_rank][beg_file] = Some(Piece {
+                    let color = piece.color;
+                    self.check_en_pessant(color, ending_pos);
+                    self.board[beg_rank][beg_file] = Some(Piece {
                         piece_type: PieceType::Pawn(true),
                         color: piece.color,
                     })
-                }
+                },
                 PieceType::Rook(false) => {
-                    board[beg_rank][beg_file] = Some(Piece {
+                    self.board[beg_rank][beg_file] = Some(Piece {
                         piece_type: PieceType::Rook(true),
                         color: piece.color,
                     })
-                }
+                },
                 _ => (),
             },
             None => (),
         }
 
-        board[end_rank][end_file] = board[beg_rank][beg_file].clone();
-        board[beg_rank][beg_file] = None;
+        match starting_piece.unwrap().piece_type {
+            PieceType::Pawn(true) => {
+                match starting_piece.unwrap().color {
+                    Color::Black => {
+                        if end_rank == 7 {
+                            let mut choice = String::new();
+                            println!("Select: N, Q, B, R");
+                            io::stdin().read_line(&mut choice).expect("Failed to read line");
+                            match choice.chars().nth(0).unwrap().to_ascii_uppercase() {
+                                'N' => {
+                                    self.board[beg_rank][beg_file]= Some(Piece {
+                                        piece_type: PieceType::Knight,
+                                        color: Color::Black,
+                                    })
+                                },
+                                'Q' => {
+                                    self.board[beg_rank][beg_file]= Some(Piece {
+                                        piece_type: PieceType::Queen,
+                                        color: Color::Black,
+                                    })
+                                },
+                                'B' => {
+                                    self.board[beg_rank][beg_file]= Some(Piece {
+                                        piece_type: PieceType::Bishop,
+                                        color: Color::Black,
+                                    })
+                                },
+                                'R' => {
+                                    self.board[beg_rank][beg_file]= Some(Piece {
+                                        piece_type: PieceType::Rook(true),
+                                        color: Color::Black,
+                                    })
+                                },
+                                _ => panic!("Bro idk what to say I'm too lazy to fix this"),
+                            }
+                            println!();
+                        }
+                    },
+                    Color::White => {
+                        if end_rank == 0 {
+                            let mut choice = String::new();
+                            println!("Select: N, Q, B, R");
+                            io::stdin().read_line(&mut choice).expect("Failed to read line");
+                            match choice.chars().nth(0).unwrap().to_ascii_uppercase() {
+                                'N' => {
+                                    self.board[beg_rank][beg_file]= Some(Piece {
+                                        piece_type: PieceType::Knight,
+                                        color: Color::White,
+                                    })
+                                },
+                                'Q' => {
+                                    self.board[beg_rank][beg_file]= Some(Piece {
+                                        piece_type: PieceType::Queen,
+                                        color: Color::White,
+                                    })
+                                },
+                                'B' => {
+                                    self.board[beg_rank][beg_file]= Some(Piece {
+                                        piece_type: PieceType::Bishop,
+                                        color: Color::White,
+                                    })
+                                },
+                                'R' => {
+                                    self.board[beg_rank][beg_file]= Some(Piece {
+                                        piece_type: PieceType::Rook(true),
+                                        color: Color::White,
+                                    })
+                                },
+                                _ => panic!("Bro idk what to say I'm too lazy to fix this"),
+                            }
+                            println!();
+                        }
+                    },
+                }
+            },
+            _ => (),
+        }
+
+        self.board[end_rank][end_file] = self.board[beg_rank][beg_file].clone();
+        self.board[beg_rank][beg_file] = None;
     }
 
     pub fn move_piece_with_chess_notation(&mut self, start: &str, end: &str) {
@@ -295,7 +379,7 @@ impl Board {
                     false
                 }
             }
-            _ => false,
+            _ => false, // King and Knight cannot have "collisions"
         }
     }
 
@@ -315,10 +399,7 @@ impl Board {
         let starting_piece = &board[beg_rank][beg_file].unwrap();
         let ending_piece = &board[end_rank][end_file];
 
-        if !starting_piece
-            .piece_type
-            .ret_can_make_move(beginning_pos, ending_pos)
-        {
+        if !starting_piece.piece_type.ret_can_make_move(beginning_pos, ending_pos) {
             return false;
         }
         match ending_piece {
@@ -344,18 +425,63 @@ impl Board {
     }
 
     fn select_move(&mut self, beginning_pos: (usize, usize), ending_pos: (usize, usize)) -> bool {
-        // todo: castling, en pessant
-        let board = &mut self.board;
-
         let (beg_rank, beg_file) = beginning_pos;
         let (end_rank, end_file) = ending_pos;
 
         let diff_file: i32 = (end_file as i32 - beg_file as i32).abs();
         let diff_rank: i32 = end_rank as i32 - beg_rank as i32;
 
-        let starting_piece = &board[beg_rank][beg_file].unwrap();
-        let ending_piece = &board[end_rank][end_file];
+        let starting_piece = self.board[beg_rank][beg_file].unwrap();
+        let ending_piece = self.board[end_rank][end_file];
 
+        // check checking needs to be implemented for castling
+        if let PieceType::King(false) = starting_piece.piece_type {
+            if ending_piece.is_some() {
+                if let PieceType::Rook(false) = ending_piece.unwrap().piece_type {
+                    if !self.check_collison(ending_pos, beginning_pos) {
+                        if end_file > beg_file {
+                            self.move_piece(beginning_pos, (beg_rank, beg_file + 2));
+                            self.move_piece(ending_pos, (beg_rank, beg_file + 1));
+                            return true;
+                        } else {
+                            self.move_piece(beginning_pos, (beg_rank, beg_file - 2));
+                            self.move_piece(ending_pos, (beg_rank, beg_file - 1));
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // en pessant
+        if let PieceType::Pawn(true) = starting_piece.piece_type {
+            match starting_piece.color {
+                Color::Black => {
+                    if ((beg_rank < end_rank) && (end_rank - beg_rank) == 1) && (diff_file == 1) && ending_piece.is_none() {
+                        for (i,j) in self.can_en_pessant {
+                            if (i == beg_rank as i32) && (j == beg_file as i32) {
+                                self.board[beg_rank][end_file] = None;
+                                self.move_piece(beginning_pos, ending_pos);
+                                return true;
+                            }
+                        }
+                    }
+                }, 
+                Color::White => {
+                    if ((end_rank < beg_rank) && (beg_rank - end_rank) == 1) && (diff_file == 1) && ending_piece.is_none() {
+                        for (i,j) in self.can_en_pessant {
+                            if (i == beg_rank as i32) && (j == beg_file as i32) {
+                                self.board[beg_rank][end_file] = None;
+                                self.move_piece(beginning_pos, ending_pos);
+                                return true;
+                            }
+                        }
+                    }
+                },
+            }
+        }
+
+        // pawn everything else
         if let PieceType::Pawn(_) = starting_piece.piece_type {
             if diff_file == 0 {
                 return self.make_move(beginning_pos, ending_pos);
@@ -399,7 +525,9 @@ impl Board {
             }
             return false;
         }
-        // todo castling, en pessant
+
+
+        
         self.make_move(beginning_pos, ending_pos)
     }
 

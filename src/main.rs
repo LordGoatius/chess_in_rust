@@ -5,8 +5,6 @@ fn main() {
     let mut board = Board { ..Default::default()};
     board.print_board();
 
-    
-
     'main_loop: loop {
         let mut start_move = String::new();
         let mut end_move = String::new();
